@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom & Send</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c1: #CC5803; --c2: #E2711D; --c3: #FF9505;
+    --c4: #FFB627; --c5: #FFC971;
+    --bg: #FFFBF5; --bg2: #FFF4E3; --bg3: #FFECC8;
+    --text: #2D1A00; --muted: #7A4A1E; --soft: #C47A35;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── App shell ── */
+  .app { max-width: 420px; margin: 0 auto; padding-bottom: 60px; }
+
+  /* ── Header ── */
+  .header {
+    background: var(--c1);
+    padding: 26px 20px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0;
+    height: 20px; background: var(--bg);
+    border-radius: 20px 20px 0 0;
+  }
+  .header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px; color: #fff;
+    position: relative; z-index: 1; line-height: 1.1;
+  }
+  .header p {
+    font-size: 12px; color: rgba(255,255,255,0.72);
+    margin-top: 5px; font-weight: 300;
+    letter-spacing: 1px; text-transform: uppercase;
+    position: relative; z-index: 1;
+  }
+
+  /* ── Step nav ── */
+  .steps-row {
+    display: flex; align-items: center;
+    justify-content: center; padding: 18px 20px 8px;
+  }
+  .step-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .step-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    background: var(--bg3); color: var(--soft);
+    border: 1.5px solid transparent;
+    transition: all 0.3s; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .step-dot.active { background: var(--c1); color: #fff; box-shadow: 0 3px 12px rgba(204,88,3,0.3); }
+  .step-dot.done   { background: var(--bg3); color: var(--c1); border-color: var(--c3); }
+  .step-label { font-size: 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.3px; }
+  .step-connector { width: 36px; height: 1.5px; background: var(--bg3); margin-bottom: 18px; transition: background 0.3s; }
+  .step-connector.done { background: var(--c3); }
+
+  /* ── Panels ── */
+  .panel { display: none; padding: 6px 16px 0; animation: up 0.3s ease; }
+  .panel.active { display: block; }
+  @keyframes up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .panel-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px; color: var(--c1);
+    text-align: center; margin: 10px 0 4px;
+  }
+  .panel-hint { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 14px; font-weight: 300; }
+
+  /* ── Garden grid ── */
+  .garden-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; margin-bottom: 14px; }
+  .plant-card {
+    background: #fff; border-radius: 14px;
+    padding: 10px 6px 8px; text-align: center;
+    cursor: pointer; border: 1.5px solid var(--bg3);
+    transition: all 0.22s; position: relative;
+  }
+  .plant-card:hover { transform: translateY(-3px); border-color: var(--c4); box-shadow: 0 5px 16px rgba(255,182,39,0.2); }
+  .plant-card.selected { border-color: var(--c2); background: #FFF8EE; box-shadow: 0 4px 14px rgba(226,113,29,0.18); }
+  .plant-card svg { width: 44px; height: 44px; display: block; margin: 0 auto; }
+  .plant-card .fn { font-size: 9px; color: var(--muted); margin-top: 5px; font-weight: 500; letter-spacing: 0.2px; }
+  .plant-card .badge {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--c1); color: #fff;
+    border-radius: 50%; width: 20px; height: 20px;
+    font-size: 10px; font-weight: 700;
+    display: none; align-items: center; justify-content: center;
+  }
+  .plant-card.selected .badge { display: flex; }
+
+  /* ── Bouquet strip ── */
+  .count-strip {
+    background: var(--bg3); border-radius: 10px;
+    padding: 8px 14px; font-size: 12px;
+    color: var(--muted); font-weight: 500;
+    text-align: center; margin-bottom: 10px;
+  }
+  .bouquet-box {
+    background: #fff; border: 1.5px solid var(--bg3);
+    border-radius: 18px; padding: 14px;
+    min-height: 90px; display: flex; flex-wrap: wrap;
+    gap: 6px; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .bf { cursor: pointer; transition: transform 0.2s; animation: bloom 0.35s ease; }
+  .bf:hover { transform: scale(1.15) rotate(6deg); }
+  @keyframes bloom { from { transform: scale(0) rotate(-20deg); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .bf svg { width: 44px; height: 44px; display: block; }
+  .bempty { font-size: 12px; color: #C8A870; font-weight: 300; width: 100%; text-align: center; }
+
+  /* ── Buttons ── */
+  .btn {
+    width: 100%; padding: 14px; border-radius: 13px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    margin-bottom: 8px; letter-spacing: 0.2px;
+  }
+  .btn-primary { background: var(--c1); color: #fff; box-shadow: 0 4px 16px rgba(204,88,3,0.28); }
+  .btn-primary:hover { background: #b34d03; transform: translateY(-2px); }
+  .btn-secondary { background: transparent; color: var(--c2); border: 1.5px solid var(--bg3); }
+  .btn-secondary:hover { background: var(--bg3); }
+
+  /* ── Message form ── */
+  .field-group { background: #fff; border: 1.5px solid var(--bg3); border-radius: 18px; padding: 16px; margin-bottom: 14px; }
+  .field-label { font-size: 11px; font-weight: 600; color: var(--soft); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .field-input {
+    width: 100%; border: 1.5px solid var(--bg3); border-radius: 10px;
+    padding: 10px 13px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text); outline: none;
+    background: var(--bg); transition: border 0.2s;
+  }
+  .field-input:focus { border-color: var(--c3); }
+  .field-textarea {
+    width: 100%; border: 1.5px solid var(--bg3); border-radius: 10px;
+    padding: 10px 13px; font-family: 'DM Serif Display', serif;
+    font-size: 16px; font-style: italic; color: var(--text);
+    outline: none; resize: none; height: 100px;
+    background: var(--bg); transition: border 0.2s; line-height: 1.6;
+  }
+  .field-textarea:focus { border-color: var(--c3); }
+  .divider { height: 1px; background: var(--bg3); margin: 12px 0; }
+
+  /* ── Share card ── */
+  .share-card {
+    background: #fff; border: 1.5px solid var(--bg3);
+    border-radius: 20px; padding: 24px 20px;
+    margin-bottom: 14px; box-shadow: 0 4px 20px rgba(255,182,39,0.1);
+  }
+  .share-card-title { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--c1); margin-bottom: 6px; text-align: center; }
+  .share-card-sub { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 18px; font-weight: 300; line-height: 1.6; }
+  .link-box {
+    background: var(--bg3); border-radius: 12px;
+    padding: 12px 14px; display: flex; align-items: center;
+    gap: 10px; margin-bottom: 14px;
+  }
+  .link-text { font-size: 11px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+  .copy-btn {
+    background: var(--c1); color: #fff; border: none;
+    border-radius: 9px; padding: 8px 14px; font-size: 12px;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+    font-family: 'DM Sans', sans-serif; transition: background 0.2s; flex-shrink: 0;
+  }
+  .copy-btn:hover { background: #b34d03; }
+  .copy-btn.copied { background: #5A8C32; }
+  .share-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+  .share-divider span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .share-divider::before, .share-divider::after { content: ''; flex: 1; height: 1px; background: var(--bg3); }
+  .share-btn-row { display: flex; gap: 8px; }
+  .share-btn {
+    flex: 1; padding: 11px 8px; border-radius: 11px;
+    border: 1.5px solid var(--bg3); background: #fff;
+    font-size: 12px; font-weight: 600; color: var(--c2);
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s; text-align: center;
+  }
+  .share-btn:hover { background: var(--bg3); }
+
+  /* ── Received view ── */
+  .recv-outer {
+    min-height: 100vh; background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px 20px;
+  }
+  .recv-bg {
+    background: var(--c1); border-radius: 26px;
+    padding: 32px 22px; text-align: center;
+    width: 100%; max-width: 380px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(204,88,3,0.25);
+  }
+  .recv-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 65% 25%, rgba(255,198,113,0.3) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .recv-tag { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 18px; font-weight: 500; }
+  .recv-flowers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 22px; position: relative; z-index: 1; }
+  .recv-flowers svg { animation: floatF 3s ease-in-out infinite; }
+  @keyframes floatF { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(3deg); } }
+  .recv-msg {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px; color: #fff; font-style: italic;
+    line-height: 1.45; margin-bottom: 12px;
+    position: relative; z-index: 1; padding: 0 6px;
+  }
+  .recv-from { font-size: 13px; color: rgba(255,255,255,0.75); position: relative; z-index: 1; font-weight: 300; }
+  .recv-footer { margin-top: 20px; font-size: 11px; color: var(--muted); text-align: center; font-weight: 300; }
+  .recv-make-own { margin-top: 14px; }
+
+  /* ── Petals ── */
+  .petals { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; overflow: hidden; }
+  .petal { position: absolute; top: -30px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #2D1A00; color: #fff;
+    padding: 10px 20px; border-radius: 30px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.3s;
+    pointer-events: none; z-index: 1000; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="petals" id="petals"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══ SENDER APP ═══ -->
+<div class="app" id="main-app">
+  <div class="header">
+    <h1>Bloom &amp; Send</h1>
+    <p>A living bouquet, delivered with love</p>
+  </div>
+
+  <div class="steps-row">
+    <div class="step-item">
+      <div class="step-dot active" id="dot-1" onclick="goStep(1)">1</div>
+      <div class="step-label">Garden</div>
+    </div>
+    <div class="step-connector" id="conn-1"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot-2" onclick="goStep(2)">2</div>
+      <div class="step-label">Message</div>
+    </div>
+    <div class="step-connector" id="conn-2"></div>
+    <div class="step-item">
+      <div class="step-dot" id="dot-3" onclick="goStep(3)">3</div>
+      <div class="step-label">Share</div>
+    </div>
+  </div>
+
+  <!-- Step 1: Garden -->
+  <div class="panel active" id="panel-1">
+    <div class="panel-title">Your Garden</div>
+    <p class="panel-hint">Tap to pick flowers for your bouquet</p>
+    <div class="garden-grid" id="garden-grid"></div>
+    <div class="count-strip" id="grow-count">Bouquet is empty — add your first flower</div>
+    <div class="bouquet-box" id="bouquet-preview">
+      <div class="bempty">Your bouquet will bloom here</div>
+    </div>
+    <button class="btn btn-primary" onclick="goStep(2)">Write a message →</button>
+  </div>
+
+  <!-- Step 2: Message -->
+  <div class="panel" id="panel-2">
+    <div class="panel-title">Your Message</div>
+    <p class="panel-hint">Add a personal note to your bouquet</p>
+    <div class="bouquet-box" id="bouquet-preview-2" style="min-height:64px;margin-bottom:12px;"></div>
+    <div class="field-group">
+      <span class="field-label">From</span>
+      <input class="field-input" type="text" id="sender-name" placeholder="Your name..." maxlength="30">
+      <div class="divider"></div>
+      <span class="field-label">Message</span>
+      <textarea class="field-textarea" id="message-text" placeholder="Write something warm..." maxlength="200"></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="goStep(3)">Create shareable link →</button>
+    <button class="btn btn-secondary" onclick="goStep(1)">← Back to garden</button>
+  </div>
+
+  <!-- Step 3: Share -->
+  <div class="panel" id="panel-3">
+    <div class="panel-title">Share Your Bouquet</div>
+    <p class="panel-hint">Send this link — they'll see your bouquet when they open it</p>
+    <div class="share-card">
+      <div class="share-card-title">Your bouquet link is ready</div>
+      <div class="share-card-sub">Anyone who opens this link will receive your bouquet and message right on their screen</div>
+      <div class="link-box">
+        <span class="link-text" id="share-link-display">generating...</span>
+        <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy</button>
+      </div>
+      <div class="share-divider"><span>or share via</span></div>
+      <div class="share-btn-row">
+        <button class="share-btn" onclick="shareWA()">WhatsApp</button>
+        <button class="share-btn" onclick="shareNative()">More apps</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="previewReceived()">Preview what they'll see</button>
+    <button class="btn btn-secondary" onclick="goStep(2)">← Edit message</button>
+  </div>
+</div>
+
+<!-- ═══ RECEIVER VIEW ═══ -->
+<div id="recv-view" style="display:none;">
+  <div class="recv-outer">
+    <div class="recv-bg">
+      <div class="recv-tag">A bouquet for you</div>
+      <div class="recv-flowers" id="recv-flowers"></div>
+      <div class="recv-msg" id="recv-msg"></div>
+      <div class="recv-from" id="recv-from"></div>
+    </div>
+    <div class="recv-footer">Made with Bloom &amp; Send</div>
+    <div class="recv-make-own">
+      <button class="btn btn-primary" style="max-width:260px;" onclick="startOver()">Make your own bouquet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  FLOWER SVG LIBRARY (watercolour style)
+// ═══════════════════════════════════════
+const FLOWERS = {
+  rose: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    <ellipse cx="40" cy="28" rx="12" ry="16" fill="#E2711D" opacity="0.55" transform="rotate(-15,40,40)"/>
+    <ellipse cx="40" cy="28" rx="12" ry="16" fill="#CC5803" opacity="0.4" transform="rotate(15,40,40)"/>
+    <ellipse cx="28" cy="42" rx="13" ry="15" fill="#FF9505" opacity="0.45" transform="rotate(-30,40,40)"/>
+    <ellipse cx="52" cy="42" rx="13" ry="15" fill="#E2711D" opacity="0.45" transform="rotate(30,40,40)"/>
+    <ellipse cx="32" cy="55" rx="11" ry="13" fill="#FFB627" opacity="0.4" transform="rotate(10,40,40)"/>
+    <ellipse cx="50" cy="54" rx="11" ry="13" fill="#FF9505" opacity="0.4" transform="rotate(-10,40,40)"/>
+    <circle cx="40" cy="40" r="10" fill="#CC5803" opacity="0.6"/>
+    <circle cx="40" cy="40" r="6"  fill="#8B3A00" opacity="0.55"/>
+    <circle cx="40" cy="40" r="3"  fill="#5C2400" opacity="0.7"/>
+  </svg>`,
+
+  sunflower: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,22.5,45,67.5,90,112.5,135,157.5].map(a=>`<ellipse cx="40" cy="18" rx="7" ry="13" fill="#FFC971" opacity="0.7" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[0,22.5,45,67.5,90,112.5,135,157.5].map(a=>`<ellipse cx="40" cy="18" rx="5" ry="11" fill="#FFB627" opacity="0.5" transform="rotate(${a+11},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="13" fill="#7A3A00" opacity="0.85"/>
+    <circle cx="40" cy="40" r="9"  fill="#5C2400" opacity="0.7"/>
+    <circle cx="36" cy="37" r="1.5" fill="#FFB627" opacity="0.6"/>
+    <circle cx="42" cy="36" r="1.5" fill="#FFC971" opacity="0.6"/>
+    <circle cx="39" cy="43" r="1.5" fill="#FFB627" opacity="0.5"/>
+  </svg>`,
+
+  tulip: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    <ellipse cx="40" cy="35" rx="11" ry="18" fill="#E2711D" opacity="0.6"/>
+    <ellipse cx="31" cy="38" rx="9"  ry="16" fill="#CC5803" opacity="0.55"/>
+    <ellipse cx="49" cy="38" rx="9"  ry="16" fill="#FF9505" opacity="0.55"/>
+    <ellipse cx="40" cy="30" rx="8"  ry="12" fill="#FFB627" opacity="0.45"/>
+    <line x1="40" y1="54" x2="40" y2="72" stroke="#6B8C3E" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+    <ellipse cx="33" cy="63" rx="8" ry="4" fill="#7A9E45" opacity="0.5" transform="rotate(-30,33,63)"/>
+  </svg>`,
+
+  blossom: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,72,144,216,288].map(a=>`<ellipse cx="40" cy="22" rx="9" ry="14" fill="#FFC971" opacity="0.6" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[36,108,180,252,324].map(a=>`<ellipse cx="40" cy="24" rx="7" ry="12" fill="#FFB627" opacity="0.4" transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="8" fill="#FF9505" opacity="0.75"/>
+    <circle cx="40" cy="40" r="5" fill="#E2711D" opacity="0.7"/>
+    <circle cx="37" cy="38" r="1.2" fill="#fff" opacity="0.5"/>
+  </svg>`,
+
+  lotus: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[[-15,0],[-8,-10],[0,-14],[8,-10],[15,0]].map(([dx,dy])=>`<ellipse cx="${40+dx}" cy="${46+dy}" rx="9" ry="16" fill="#FFC971" opacity="0.55" transform="rotate(${dx*2},${40+dx},${46+dy})"/>`).join('')}
+    <ellipse cx="40" cy="40" rx="8" ry="12" fill="#FFB627" opacity="0.6"/>
+    <ellipse cx="40" cy="38" rx="5" ry="9"  fill="#FF9505" opacity="0.55"/>
+    <circle  cx="40" cy="36" r="4"           fill="#E2711D" opacity="0.65"/>
+    <circle  cx="40" cy="36" r="2"           fill="#CC5803" opacity="0.7"/>
+  </svg>`,
+
+  daisy: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,30,60,90,120,150,180,210,240,270,300,330].map(a=>`<ellipse cx="40" cy="21" rx="5" ry="11" fill="#FFF3D4" opacity="0.9" stroke="#FFB627" stroke-width="0.5" transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="10" fill="#FFB627" opacity="0.9"/>
+    <circle cx="40" cy="40" r="7"  fill="#FF9505" opacity="0.8"/>
+    <circle cx="37" cy="38" r="2"  fill="#FFC971" opacity="0.6"/>
+  </svg>`,
+
+  poppy: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    <ellipse cx="40" cy="26" rx="14" ry="18" fill="#CC5803" opacity="0.55"/>
+    <ellipse cx="27" cy="46" rx="14" ry="18" fill="#E2711D" opacity="0.5"  transform="rotate(90,27,46)"/>
+    <ellipse cx="53" cy="46" rx="14" ry="18" fill="#FF9505" opacity="0.5"  transform="rotate(90,53,46)"/>
+    <ellipse cx="40" cy="55" rx="13" ry="16" fill="#FFB627" opacity="0.45"/>
+    <circle  cx="40" cy="40" r="9"           fill="#5C2400" opacity="0.8"/>
+    <circle  cx="40" cy="40" r="5"           fill="#3A1600" opacity="0.7"/>
+    ${[0,45,90,135].map(a=>`<line x1="40" y1="40" x2="${40+9*Math.cos(a*Math.PI/180)}" y2="${40+9*Math.sin(a*Math.PI/180)}" stroke="#FFB627" stroke-width="1" opacity="0.6"/>`).join('')}
+  </svg>`,
+
+  anemone: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,60,120,180,240,300].map(a=>`<ellipse cx="40" cy="20" rx="10" ry="17" fill="#FFC971" opacity="0.55" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[30,90,150,210,270,330].map(a=>`<ellipse cx="40" cy="22" rx="8"  ry="15" fill="#FFB627" opacity="0.4"  transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="11" fill="#2D1A00" opacity="0.75"/>
+    <circle cx="40" cy="40" r="7"  fill="#1A0D00" opacity="0.7"/>
+    ${Array.from({length:8},(_,i)=>`<circle cx="${40+6*Math.cos(i*45*Math.PI/180)}" cy="${40+6*Math.sin(i*45*Math.PI/180)}" r="1.5" fill="#FFB627" opacity="0.7"/>`).join('')}
+  </svg>`,
+
+  marigold: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,20,40,60,80,100,120,140,160,180,200,220,240,260,280,300,320,340].map(a=>`<ellipse cx="40" cy="20" rx="4.5" ry="11" fill="#FF9505" opacity="0.6" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[10,30,50,70,90,110,130,150,170,190,210,230,250,270,290,310,330,350].map(a=>`<ellipse cx="40" cy="24" rx="4"   ry="9"  fill="#FFB627" opacity="0.5" transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="11" fill="#E2711D" opacity="0.85"/>
+    <circle cx="40" cy="40" r="7"  fill="#CC5803" opacity="0.8"/>
+    <circle cx="40" cy="40" r="3"  fill="#8B3A00" opacity="0.7"/>
+  </svg>`,
+
+  wildrose: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,72,144,216,288].map(a=>`<ellipse cx="40" cy="24" rx="11" ry="17" fill="#FFB627" opacity="0.55" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[36,108,180,252,324].map(a=>`<ellipse cx="40" cy="26" rx="9"  ry="14" fill="#FF9505" opacity="0.4"  transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="9"   fill="#E2711D" opacity="0.7"/>
+    <circle cx="40" cy="40" r="5.5" fill="#CC5803" opacity="0.75"/>
+    ${Array.from({length:6},(_,i)=>`<line x1="40" y1="40" x2="${40+8*Math.cos(i*60*Math.PI/180)}" y2="${40+8*Math.sin(i*60*Math.PI/180)}" stroke="#FFC971" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>`).join('')}
+    ${Array.from({length:6},(_,i)=>`<circle cx="${40+9*Math.cos(i*60*Math.PI/180)}" cy="${40+9*Math.sin(i*60*Math.PI/180)}" r="1.5" fill="#FFB627" opacity="0.8"/>`).join('')}
+  </svg>`,
+
+  fern: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    <line x1="40" y1="70" x2="40" y2="20" stroke="#4A7A28" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    ${[-28,-20,-12,-4,4,12,20,28].map((dy,i)=>`<ellipse cx="${40+(i<4?-10:10)}" cy="${70+dy}" rx="10" ry="5" fill="#5A8C32" opacity="0.55" transform="rotate(${i<4?-35:35},${40+(i<4?-10:10)},${70+dy})"/>`).join('')}
+    <ellipse cx="40" cy="22" rx="7" ry="5" fill="#6B9E3E" opacity="0.55"/>
+  </svg>`,
+
+  succulent: () => `<svg viewBox="0 0 80 80" style="width:44px;height:44px;">
+    ${[0,45,90,135,180,225,270,315].map(a=>`<ellipse cx="40" cy="26" rx="8" ry="14" fill="#7A9E45" opacity="0.55" transform="rotate(${a},40,40)"/>`).join('')}
+    ${[22.5,67.5,112.5,157.5,202.5,247.5,292.5,337.5].map(a=>`<ellipse cx="40" cy="29" rx="6" ry="11" fill="#5A8C32" opacity="0.45" transform="rotate(${a},40,40)"/>`).join('')}
+    <circle cx="40" cy="40" r="9"   fill="#4A7A28" opacity="0.75"/>
+    <circle cx="40" cy="40" r="5"   fill="#3A6020" opacity="0.7"/>
+    <circle cx="40" cy="40" r="2.5" fill="#FFC971" opacity="0.7"/>
+  </svg>`,
+};
+
+const PLANTS = [
+  {id:'rose',     n:'Rose'},      {id:'sunflower', n:'Sunflower'},
+  {id:'tulip',    n:'Tulip'},     {id:'blossom',   n:'Blossom'},
+  {id:'lotus',    n:'Lotus'},     {id:'daisy',     n:'Daisy'},
+  {id:'poppy',    n:'Poppy'},     {id:'anemone',   n:'Anemone'},
+  {id:'marigold', n:'Marigold'},  {id:'wildrose',  n:'Wild Rose'},
+  {id:'fern',     n:'Fern'},      {id:'succulent', n:'Succulent'},
+];
+
+let bouquet = [], counts = {}, shareURL = '';
+
+// ── Helpers ──────────────────────────────────────────
+function getSVG(id, size = 44) {
+  const raw = (FLOWERS[id] || FLOWERS.rose)();
+  return raw.replace(/width:\d+px;height:\d+px;/, `width:${size}px;height:${size}px;`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── Garden ───────────────────────────────────────────
+function buildGarden() {
+  const g = document.getElementById('garden-grid');
+  g.innerHTML = '';
+  PLANTS.forEach((p, i) => {
+    const c = document.createElement('div');
+    c.className = 'plant-card'; c.id = 'pc-' + i;
+    c.innerHTML = `${getSVG(p.id)}<div class="fn">${p.n}</div><div class="badge" id="b-${i}">1</div>`;
+    c.onclick = () => addFlower(i);
+    g.appendChild(c);
+  });
+}
+
+function addFlower(i) {
+  bouquet.push(PLANTS[i].id);
+  counts[i] = (counts[i] || 0) + 1;
+  document.getElementById('pc-' + i).classList.add('selected');
+  const b = document.getElementById('b-' + i);
+  b.textContent = counts[i]; b.style.display = 'flex';
+  renderPreview();
+}
+
+function removeFlower(idx) {
+  const id = bouquet[idx];
+  bouquet.splice(idx, 1);
+  const pi = PLANTS.findIndex(p => p.id === id);
+  if (pi >= 0) {
+    counts[pi] = (counts[pi] || 1) - 1;
+    const b = document.getElementById('b-' + pi);
+    if (counts[pi] <= 0) { document.getElementById('pc-' + pi).classList.remove('selected'); b.style.display = 'none'; }
+    else b.textContent = counts[pi];
+  }
+  renderPreview();
+}
+
+function renderPreview() {
+  const el = document.getElementById('bouquet-preview');
+  const ct = document.getElementById('grow-count');
+  ct.textContent = bouquet.length
+    ? `${bouquet.length} flower${bouquet.length > 1 ? 's' : ''} in your bouquet — tap to remove`
+    : 'Bouquet is empty — add your first flower';
+  el.innerHTML = bouquet.length
+    ? bouquet.map((id, i) => `<span class="bf" onclick="removeFlower(${i})" title="Remove">${getSVG(id)}</span>`).join('')
+    : '<div class="bempty">Your bouquet will bloom here</div>';
+}
+
+// ── Navigation ───────────────────────────────────────
+function goStep(n) {
+  if (n === 3) buildShareLink();
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  document.querySelectorAll('.step-dot').forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i + 1 < n) d.classList.add('done');
+    else if (i + 1 === n) d.classList.add('active');
+  });
+  document.querySelectorAll('.step-connector').forEach((c, i) => c.classList.toggle('done', i + 1 < n));
+  if (n === 2) {
+    const p2 = document.getElementById('bouquet-preview-2');
+    p2.innerHTML = bouquet.length
+      ? bouquet.map(id => `<span class="bf">${getSVG(id)}</span>`).join('')
+      : '<div class="bempty">No flowers yet</div>';
+  }
+  window.scrollTo(0, 0);
+}
+
+// ── Share link ───────────────────────────────────────
+function buildShareLink() {
+  const msg  = document.getElementById('message-text').value || 'Thinking of you';
+  const from = document.getElementById('sender-name').value  || 'Someone special';
+  const data = { f: bouquet, m: msg, s: from };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  // Uses the current page URL so it works when hosted anywhere
+  const base = window.location.href.split('#')[0].split('?')[0];
+  shareURL = base + '#' + encoded;
+  document.getElementById('share-link-display').textContent = shareURL;
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(shareURL).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = shareURL; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  });
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copied!'; btn.classList.add('copied');
+  showToast('Link copied to clipboard!');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2500);
+}
+
+function shareWA() {
+  const text = encodeURIComponent('I made you a bouquet! Open it here:\n' + shareURL);
+  window.open('https://wa.me/?text=' + text, '_blank');
+}
+
+function shareNative() {
+  if (navigator.share) {
+    navigator.share({ title: 'A bouquet for you 🌸', text: 'I made you a virtual bouquet!', url: shareURL });
+  } else {
+    copyLink();
+  }
+}
+
+// ── Receiver view ────────────────────────────────────
+function showReceivedView(flowers, msg, from) {
+  document.getElementById('recv-flowers').innerHTML = flowers.length
+    ? flowers.map(id => getSVG(id, 52)).join('')
+    : getSVG('blossom', 52);
+  document.getElementById('recv-msg').textContent  = msg;
+  document.getElementById('recv-from').textContent = '— with warmth from ' + from;
+  document.getElementById('main-app').style.display  = 'none';
+  document.getElementById('recv-view').style.display = 'block';
+  launchPetals(flowers);
+  window.scrollTo(0, 0);
+}
+
+function previewReceived() {
+  const msg  = document.getElementById('message-text').value || 'Thinking of you';
+  const from = document.getElementById('sender-name').value  || 'Someone special';
+  showReceivedView(bouquet, msg, from);
+}
+
+function startOver() {
+  bouquet = []; counts = {};
+  document.getElementById('sender-name').value  = '';
+  document.getElementById('message-text').value = '';
+  document.getElementById('main-app').style.display  = 'block';
+  document.getElementById('recv-view').style.display = 'none';
+  // Clear hash without reload
+  history.replaceState(null, '', window.location.pathname);
+  buildGarden(); renderPreview(); goStep(1);
+}
+
+// ── Petal rain ───────────────────────────────────────
+function launchPetals(flowers) {
+  const c = document.getElementById('petals'); c.innerHTML = '';
+  const ids = (flowers && flowers.length) ? [...new Set(flowers)] : ['daisy', 'blossom', 'rose'];
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div'); p.className = 'petal';
+    const id = ids[i % ids.length]; const sz = 24 + Math.random() * 18;
+    p.innerHTML = getSVG(id, sz);
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDuration = (3 + Math.random() * 3) + 's';
+    p.style.animationDelay    = (Math.random() * 2) + 's';
+    c.appendChild(p);
+    setTimeout(() => p.remove(), 7000);
+  }
+}
+
+// ── Boot ─────────────────────────────────────────────
+buildGarden();
+
+// Check if opened as a received bouquet (hash in URL)
+window.addEventListener('load', () => {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(hash))));
+    if (data.f && data.m) {
+      showReceivedView(data.f, data.m, data.s || 'Someone special');
+    }
+  } catch (e) { /* not a bouquet hash — ignore */ }
+});
+</script>
+</body>
+</html>
